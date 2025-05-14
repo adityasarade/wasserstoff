@@ -6,6 +6,7 @@ import pdfplumber
 import io
 import shutil
 import os
+from app.services.llm_service import query_llm
 
 UPLOAD_DIR = "data/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -51,5 +52,16 @@ async def upload_file(file: UploadFile = File(...)):
             "preview": extracted_text[:500]  # Send first 500 chars for now
         }
 
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+    
+@app.post("/test-llm/")
+async def test_llm():
+    system_prompt = "You are a helpful assistant who summarizes user queries."
+    user_prompt = "Explain the concept of few-shot learning in simple terms."
+    
+    try:
+        response = query_llm(system_prompt, user_prompt)
+        return {"response": response}
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
