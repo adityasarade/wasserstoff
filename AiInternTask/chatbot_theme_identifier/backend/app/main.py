@@ -1,67 +1,61 @@
 from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import JSONResponse
-from PIL import Image
-import pytesseract
-import pdfplumber
-import io
-import shutil
+from app.services.llm_service import query_llm, truncate_text
+from app.services.vector_store import search
+from app.services.file_handler import extract_text_from_file
+from pydantic import BaseModel
+from typing import List
 import os
-from app.services.llm_service import query_llm
 
 UPLOAD_DIR = "data/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 app = FastAPI()
+
 @app.get("/")
 def read_root():
     return {"message": "Server is up and running!"}
 
 @app.post("/upload/")
-async def upload_file(file: UploadFile = File(...)):
-    content = await file.read()
-    filename = file.filename.lower()
-    file_path = os.path.join(UPLOAD_DIR, file.filename)
+async def upload_files(files: List[UploadFile] = File(...)):
+    results = []
 
-    # Save the file
+    for file in files:
+        try:
+            extracted_text = await extract_text_from_file(file)
+
+            if not extracted_text:
+                results.append({
+                    "filename": file.filename,
+                    "error": "Unsupported or unreadable file"
+                })
+                continue
+
+            system_prompt = "You are a helpful assistant that identifies the main theme or topic of a given document."
+            truncated_text = truncate_text(extracted_text)
+            llm_response = query_llm(system_prompt, truncated_text)
+
+            results.append({
+                "filename": file.filename,
+                "llm_response": llm_response
+            })
+
+        except Exception as e:
+            results.append({
+                "filename": file.filename,
+                "error": str(e)
+            })
+
+    return results
+
+class SearchRequest(BaseModel):
+    query: str
+    top_k: int = 5
+
+@app.post("/search/")
+async def semantic_search(req: SearchRequest):
     try:
-        with open(file_path, "wb") as f:
-            f.write(content)
-    except Exception as e:
-        return JSONResponse({"error": f"File saving failed: {str(e)}"}, status_code=500)
-
-    extracted_text = ""
-
-    try:
-        if filename.endswith(".pdf"):
-            with pdfplumber.open(io.BytesIO(content)) as pdf:
-                for page in pdf.pages:
-                    page_text = page.extract_text()
-                    if page_text:
-                        extracted_text += page_text + "\n"
-
-        elif filename.endswith((".png", ".jpg", ".jpeg")):
-            image = Image.open(io.BytesIO(content))
-            extracted_text = pytesseract.image_to_string(image)
-
-        else:
-            return JSONResponse({"error": "Unsupported file type"}, status_code=400)
-
-        return {
-            "filename": file.filename,
-            "status": "saved",
-            "preview": extracted_text[:500]  # Send first 500 chars for now
-        }
-
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
-    
-@app.post("/test-llm/")
-async def test_llm():
-    system_prompt = "You are a helpful assistant who summarizes user queries."
-    user_prompt = "Explain the concept of few-shot learning in simple terms."
-    
-    try:
-        response = query_llm(system_prompt, user_prompt)
-        return {"response": response}
+        results = search(req.query, top_k=req.top_k)
+        return {"query": req.query, "results": results}
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
