@@ -1,0 +1,55 @@
+paths:
+  vector_store_dir: "data/vector_store"
+  index_file: "index.faiss"
+  metadata_file: "metadata.pkl"
+
+llm:
+  model_name: "llama3-70b-8192"
+  temperature: 0.3
+  max_tokens: 3000
+
+embedding:
+  model_name: "all-MiniLM-L6-v2"
+
+search:
+  initial_top_k_multiplier: 3
+  chunk_min_words: 15
+
+ocr:
+  dpi: 300
+  tesseract_psm: 6
+  threshold: 140
+
+prompts:
+  summarize_doc:
+    system: "You are a helpful research assistant that summarizes documents."
+    user: |
+      Given the document chunks below, write a concise summary (2–3 sentences) of the document's main topic. Also include a citation based on the Page and Paragraph numbers shown.
+
+      Document Chunks:
+      {content}
+
+      Respond strictly in this format:
+      - Answer: <summary>
+      - Citation: Page X, Para Y
+  synthesize_themes:
+    system: "You are a research assistant summarizing themes across documents."
+    user: |
+      You are given summaries from several documents. Identify 2–3 core themes across them. Label each theme, list supporting document IDs, and write a short explanation.
+
+      Document Summaries:
+      {context}
+
+      Respond in this format:
+
+      Theme 1: <Title>
+      - Supporting documents: Document Name/ID
+      - Description: <theme explanation>
+  search:
+    system: |
+      You are an AI assistant that synthesizes information into key themes.
+      Given the following extracted facts from documents, group them into meaningful themes.
+      Use the format:
+
+      Theme 1 – [Title of theme]:
+      Documents (Document ID/ Name) explain ...

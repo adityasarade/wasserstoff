@@ -1,6 +1,7 @@
 from typing import List, Dict, Tuple
 from app.services.llm_service import query_llm
 from collections import defaultdict
+from app.core.config import params
 
 def summarize_document_chunks(doc_chunks: List[Dict]) -> Dict:
     """
@@ -13,15 +14,9 @@ def summarize_document_chunks(doc_chunks: List[Dict]) -> Dict:
         for c in doc_chunks
     ])
 
-    system_prompt = "You are a helpful research assistant that summarizes documents."
-    user_prompt = f"""Given the document chunks below, write a concise summary (2–3 sentences) of the document's main topic. Also include a citation based on the Page and Paragraph numbers shown.
-
-Document Chunks:
-{content}
-
-Respond strictly in this format:
-- Answer: <summary>
-- Citation: Page X, Para Y"""
+    prompts = params["prompts"]["summarize_doc"]
+    system_prompt = prompts["system"]
+    user_prompt = prompts["user"].format(content=content)
 
     response = query_llm(system_prompt, user_prompt)
 
@@ -42,24 +37,16 @@ def synthesize_themes(document_answers: List[Dict]) -> str:
         for doc in document_answers
     ])
 
-    system_prompt = "You are a research assistant summarizing themes across documents."
-    user_prompt = f"""You are given summaries from several documents. Identify 2–3 core themes across them. Label each theme, list supporting document IDs, and write a short explanation.
-
-Document Summaries:
-{context}
-
-Respond in this format:
-
-Theme 1: <Title>
-- Supporting documents: DOC123, DOC456
-- Description: <theme explanation>"""
+    prompts = params["prompts"]["synthesize_themes"]
+    system_prompt = prompts["system"]
+    user_prompt = prompts["user"].format(context=context)
 
     return query_llm(system_prompt, user_prompt)
 
 def group_chunks_by_doc_id(chunks):
     grouped = defaultdict(list)
     for chunk in chunks:
-        doc_id = chunk.get('doc_id')  # or whatever key identifies the doc
+        doc_id = chunk.get('doc_id')
         grouped[doc_id].append(chunk)
     return dict(grouped)
 

@@ -2,12 +2,30 @@ from fastapi import APIRouter, Query
 from app.services.vector_store import search
 from app.services.llm_service import query_llm
 from typing import List
+from app.core.config import params
 
 router = APIRouter()
 
 @router.get("/search/")
 async def search_documents(query: str = Query(...), top_k: int = 10):
-    top_chunks = search(query, top_k=top_k)
+    # Fetch extra candidates based on multiplier from params
+    multiplier = params["search"]["initial_top_k_multiplier"]
+    raw_chunks = search(query, top_k=top_k * multiplier)
+    
+    # Deduplicate based on Document ID
+    seen_doc_ids = set()
+    unique_chunks = []
+    for chunk in raw_chunks:
+        if chunk["doc_id"] not in seen_doc_ids:
+            seen_doc_ids.add(chunk["doc_id"])
+            unique_chunks.append(chunk)
+
+    # Filter out chunks with very short or uninformative text
+    min_words = params["search"]["chunk_min_words"]
+    filtered_chunks = [c for c in unique_chunks if len(c["text"].split()) >= min_words]
+
+    # Pick top_k from filtered list
+    top_chunks = filtered_chunks[:top_k]
 
     if not top_chunks:
         return {"error": "No relevant information found."}
@@ -30,15 +48,7 @@ async def search_documents(query: str = Query(...), top_k: int = 10):
     context = "\n".join(chunk_texts)
 
     # System prompt for synthesis
-    system_prompt = (
-        "You are an AI assistant that synthesizes legal evidence into key themes.\n"
-        "Given the following extracted facts from documents, group them into meaningful themes.\n"
-        "Use the format:\n\n"
-        "Theme 1 – [Title of theme]:\n"
-        "Documents (DOC001, DOC003) explain ...\n\n"
-    )
-
-    # Call LLM with both prompts
+    system_prompt = params["prompts"]["search"]["system"]
     synthesized_response = query_llm(system_prompt, context)
 
     return {

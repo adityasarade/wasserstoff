@@ -7,6 +7,7 @@ from pdf2image import convert_from_bytes
 import uuid
 import nltk
 from nltk.tokenize import sent_tokenize
+from app.core.config import params
 
 # Download tokenizer if missing
 try:
@@ -20,6 +21,7 @@ def preprocess_image(image: Image.Image) -> Image.Image:
     Preprocess PIL Image for better OCR accuracy: convert to grayscale and apply threshold.
     """
     gray = image.convert("L")  # grayscale
+    thresh = params["ocr"]["threshold"]
     bw = gray.point(lambda x: 0 if x < 140 else 255, '1')  # simple binary threshold
     return bw
 
@@ -46,7 +48,10 @@ async def extract_chunks_from_file(file: UploadFile) -> list[dict]:
                     "text": clean_sentence,
                     "text_length": len(clean_sentence)
                 })
-
+                
+    dpi = params["ocr"]["dpi"]
+    psm = params["ocr"]["tesseract_psm"]
+    
     if filename.endswith(".pdf"):
         try:
             with pdfplumber.open(io.BytesIO(content)) as pdf:
@@ -58,18 +63,18 @@ async def extract_chunks_from_file(file: UploadFile) -> list[dict]:
                         chunk_sentences(page_text, file_id, page_number, file.filename)
                     else:
                         print(f"⚠️ Page {page_number} has no text. Falling back to OCR.")
-                        img = page.to_image(resolution=300).original
+                        img = page.to_image(resolution=dpi).original
                         img = preprocess_image(img)
-                        ocr_text = pytesseract.image_to_string(img, config='--psm 6')
+                        ocr_text = pytesseract.image_to_string(img, config=f'--psm {psm}')
                         print(f"🖼️ OCR text from page {page_number}: {repr(ocr_text[:100])}")
                         chunk_sentences(ocr_text, file_id, page_number, file.filename)
         except Exception as e:
             print(f"❌ PDFPlumber error for {filename}: {e}")
             print("📸 OCR fallback for entire PDF...")
-            images = convert_from_bytes(content, dpi=300)
+            images = convert_from_bytes(content, dpi=dpi)
             for page_number, img in enumerate(images, start=1):
                 img = preprocess_image(img)
-                ocr_text = pytesseract.image_to_string(img, config='--psm 6')
+                ocr_text = pytesseract.image_to_string(img, config=f'--psm {psm}')
                 print(f"🖼️ OCR text from page {page_number}: {repr(ocr_text[:100])}")
                 chunk_sentences(ocr_text, file_id, page_number, file.filename)
 
@@ -77,7 +82,7 @@ async def extract_chunks_from_file(file: UploadFile) -> list[dict]:
         print(f"🖼️ Image file detected: {filename}")
         image = Image.open(io.BytesIO(content))
         image = preprocess_image(image)
-        ocr_text = pytesseract.image_to_string(image, config='--psm 6')
+        ocr_text = pytesseract.image_to_string(image, config=f'--psm {psm}')
         print(f"🖨️ OCR text preview: {repr(ocr_text[:100])}")
         chunk_sentences(ocr_text, file_id, page_number=1, filename=file.filename)
 
