@@ -3,33 +3,83 @@ import pytesseract
 import pdfplumber
 import io
 from fastapi import UploadFile
+from pdf2image import convert_from_bytes
+import uuid
+import nltk
+from nltk.tokenize import sent_tokenize
 
-async def extract_text_from_file(file: UploadFile) -> str | None:
+# Download tokenizer if missing
+try:
+    nltk.data.find("tokenizers/punkt")
+except LookupError:
+    nltk.download("punkt")
+
+
+def preprocess_image(image: Image.Image) -> Image.Image:
+    """
+    Preprocess PIL Image for better OCR accuracy: convert to grayscale and apply threshold.
+    """
+    gray = image.convert("L")  # grayscale
+    bw = gray.point(lambda x: 0 if x < 140 else 255, '1')  # simple binary threshold
+    return bw
+
+async def extract_chunks_from_file(file: UploadFile) -> list[dict]:
+    """
+    Extract sentence-level chunks with metadata from PDF or image file.
+    Returns a list of dicts: {'doc_id', 'filename', 'page', 'sentence', 'text'}.
+    """
     content = await file.read()
     filename = file.filename.lower()
-    extracted_text = ""
+    file_id = f"DOC{str(uuid.uuid4())[:5].upper()}"  # Short custom doc ID
+    chunks = []
+
+    def chunk_sentences(text, doc_id, page_number, filename):
+        sentences = sent_tokenize(text)
+        for sent_number, sentence in enumerate(sentences, start=1):
+            clean_sentence = sentence.strip().replace("\n", " ")
+            if clean_sentence:
+                chunks.append({
+                    "doc_id": doc_id,
+                    "filename": filename,
+                    "page": page_number,
+                    "sentence": sent_number,
+                    "text": clean_sentence,
+                    "text_length": len(clean_sentence)
+                })
 
     if filename.endswith(".pdf"):
         try:
             with pdfplumber.open(io.BytesIO(content)) as pdf:
-                for page in pdf.pages:
+                print(f"🧾 PDF opened: {filename}")
+                for page_number, page in enumerate(pdf.pages, start=1):
                     page_text = page.extract_text()
                     if page_text:
-                        extracted_text += page_text + "\n"
-        except Exception:
-            pass  # fallback to OCR handled below if PDF text extraction fails
-
-        if not extracted_text:  # fallback to OCR for scanned PDFs
-            from pdf2image import convert_from_bytes
-            images = convert_from_bytes(content)
-            for img in images:
-                extracted_text += pytesseract.image_to_string(img)
+                        print(f"📄 Page {page_number} text preview: {repr(page_text[:100])}")
+                        chunk_sentences(page_text, file_id, page_number, file.filename)
+                    else:
+                        print(f"⚠️ Page {page_number} has no text. Falling back to OCR.")
+                        img = page.to_image(resolution=300).original
+                        img = preprocess_image(img)
+                        ocr_text = pytesseract.image_to_string(img, config='--psm 6')
+                        print(f"🖼️ OCR text from page {page_number}: {repr(ocr_text[:100])}")
+                        chunk_sentences(ocr_text, file_id, page_number, file.filename)
+        except Exception as e:
+            print(f"❌ PDFPlumber error for {filename}: {e}")
+            print("📸 OCR fallback for entire PDF...")
+            images = convert_from_bytes(content, dpi=300)
+            for page_number, img in enumerate(images, start=1):
+                img = preprocess_image(img)
+                ocr_text = pytesseract.image_to_string(img, config='--psm 6')
+                print(f"🖼️ OCR text from page {page_number}: {repr(ocr_text[:100])}")
+                chunk_sentences(ocr_text, file_id, page_number, file.filename)
 
     elif filename.endswith((".png", ".jpg", ".jpeg")):
+        print(f"🖼️ Image file detected: {filename}")
         image = Image.open(io.BytesIO(content))
-        extracted_text = pytesseract.image_to_string(image)
+        image = preprocess_image(image)
+        ocr_text = pytesseract.image_to_string(image, config='--psm 6')
+        print(f"🖨️ OCR text preview: {repr(ocr_text[:100])}")
+        chunk_sentences(ocr_text, file_id, page_number=1, filename=file.filename)
 
-    else:
-        return None
-
-    return extracted_text.strip() if extracted_text else None
+    print(f"✅ Extracted {len(chunks)} chunks from {filename}")
+    return chunks
