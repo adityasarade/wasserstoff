@@ -3,6 +3,8 @@ import requests
 from dotenv import load_dotenv
 import tiktoken
 from app.core.config import params
+import time
+from requests.exceptions import HTTPError
 
 load_dotenv()
 
@@ -25,7 +27,7 @@ def query_llm(system_prompt: str, user_prompt: str, model: str = None) -> str:
     }
 
     payload = {
-        "model": model or params["llm"]["model_name"],
+        "model": params["llm"]["model_name"],
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": truncate_text(user_prompt)}
@@ -33,11 +35,19 @@ def query_llm(system_prompt: str, user_prompt: str, model: str = None) -> str:
         "temperature": params["llm"]["temperature"]
     }
 
-    response = requests.post(
-    GROQ_API_URL,
-    headers=headers,
-    json=payload,
-    verify=False
-)
-    response.raise_for_status()
-    return response.json()["choices"][0]["message"]["content"]
+    max_retries = 3
+    for attempt in range(max_retries):
+        response = requests.post(GROQ_API_URL, headers=headers, json=payload, verify=False)
+        if response.status_code == 429:
+            wait = 2 ** attempt  # exponential back-off: 1s, 2s, 4s
+            time.sleep(wait)
+            continue
+        try:
+            response.raise_for_status()
+        except HTTPError as e:
+            # re-raise non-rate-limit errors immediately
+            raise
+        return response.json()["choices"][0]["message"]["content"]
+
+    # If we get here, we retried max_retries times
+    raise Exception("Rate limit exceeded. Please try again later.")

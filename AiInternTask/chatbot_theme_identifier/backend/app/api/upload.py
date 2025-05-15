@@ -1,7 +1,7 @@
 from fastapi import APIRouter, UploadFile, File
 from typing import List
 from app.services.file_handler import extract_chunks_from_file
-from app.services.vector_store import store_embeddings
+from app.services.vector_store import save_vector_store
 from app.services.summarizer import group_chunks_by_doc_id, summarize_documents
 
 router = APIRouter()
@@ -23,7 +23,7 @@ async def upload_files(files: List[UploadFile] = File(...)):
         return {"error": "No valid documents were processed."}
 
     # Step 1: Store new chunks in vector DB
-    store_embeddings(all_chunks)
+    save_vector_store(all_chunks)
 
     # Step 2: Group the flat list of chunks by document ID
     grouped = group_chunks_by_doc_id(all_chunks)

@@ -46,26 +46,6 @@ def load_vector_store():
         chunks = pickle.load(f)
     return index, chunks
 
-def store_embeddings(new_chunks: List[Dict]):
-    """
-    Incrementally add new sentence chunks to the existing FAISS index.
-    """
-    new_texts = [chunk["text"] for chunk in new_chunks]
-    new_vectors = embed_texts(new_texts)
-
-    index, existing_chunks = load_vector_store()
-
-    if index is None:
-        index = faiss.IndexFlatL2(new_vectors.shape[1])
-        existing_chunks = []
-
-    index.add(new_vectors)
-    all_chunks = existing_chunks + new_chunks
-
-    faiss.write_index(index, INDEX_PATH)
-    with open(META_PATH, "wb") as f:
-        pickle.dump(all_chunks, f)
-
 def search(query: str, top_k: int = 5) -> List[Dict]:
     """
     Searches the FAISS index and returns top_k most relevant and informative chunks.
