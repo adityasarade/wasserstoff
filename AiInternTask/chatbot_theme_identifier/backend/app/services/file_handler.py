@@ -8,6 +8,7 @@ import uuid
 import nltk
 from nltk.tokenize import sent_tokenize
 from app.config import params
+import shutil     
 
 # Download tokenizer if missing
 try:
@@ -15,6 +16,9 @@ try:
 except LookupError:
     nltk.download("punkt")
 
+TESSERACT_AVAILABLE = shutil.which("tesseract") is not None
+if not TESSERACT_AVAILABLE:
+    print("⚠️ Warning: Tesseract not found in PATH — OCR will be skipped.")
 
 def preprocess_image(image: Image.Image) -> Image.Image:
     """
@@ -62,29 +66,48 @@ async def extract_chunks_from_file(file: UploadFile) -> list[dict]:
                         print(f"📄 Page {page_number} text preview: {repr(page_text[:100])}")
                         chunk_sentences(page_text, file_id, page_number, file.filename)
                     else:
-                        print(f"⚠️ Page {page_number} has no text. Falling back to OCR.")
-                        img = page.to_image(resolution=dpi).original
-                        img = preprocess_image(img)
+                        print(f"⚠️ Page {page_number} has no text.")
+                        if TESSERACT_AVAILABLE:                       
+                            print("   ↪️ Falling back to OCR on this page")
+                            img = page.to_image(resolution=dpi).original
+                            img = preprocess_image(img)
+                            try:
+                                ocr_text = pytesseract.image_to_string(img, config=f'--psm {psm}')
+                                print(f"🖼️ OCR text from page {page_number}: {repr(ocr_text[:100])}")
+                                chunk_sentences(ocr_text, file_id, page_number, file.filename)
+                            except pytesseract.TesseractNotFoundError:
+                                print(f"❌ Tesseract not found at OCR time.")
+                        else:
+                            print("   ↪️ Skipping OCR (tesseract missing)")
+        except Exception as e:
+            print(f"❌ PDFPlumber error for {filename}: {e}")
+            if TESSERACT_AVAILABLE:                           
+                print("📸 OCR fallback for entire PDF...")
+                images = convert_from_bytes(content, dpi=dpi)
+                for page_number, img in enumerate(images, start=1):
+                    img = preprocess_image(img)
+                    try:
                         ocr_text = pytesseract.image_to_string(img, config=f'--psm {psm}')
                         print(f"🖼️ OCR text from page {page_number}: {repr(ocr_text[:100])}")
                         chunk_sentences(ocr_text, file_id, page_number, file.filename)
-        except Exception as e:
-            print(f"❌ PDFPlumber error for {filename}: {e}")
-            print("📸 OCR fallback for entire PDF...")
-            images = convert_from_bytes(content, dpi=dpi)
-            for page_number, img in enumerate(images, start=1):
-                img = preprocess_image(img)
-                ocr_text = pytesseract.image_to_string(img, config=f'--psm {psm}')
-                print(f"🖼️ OCR text from page {page_number}: {repr(ocr_text[:100])}")
-                chunk_sentences(ocr_text, file_id, page_number, file.filename)
+                    except pytesseract.TesseractNotFoundError:
+                        print(f"❌ Tesseract not found at OCR time.")
+            else:
+                print("   ↪️ Skipping full-PDF OCR (tesseract missing)")
 
     elif filename.endswith((".png", ".jpg", ".jpeg")):
         print(f"🖼️ Image file detected: {filename}")
-        image = Image.open(io.BytesIO(content))
-        image = preprocess_image(image)
-        ocr_text = pytesseract.image_to_string(image, config=f'--psm {psm}')
-        print(f"🖨️ OCR text preview: {repr(ocr_text[:100])}")
-        chunk_sentences(ocr_text, file_id, page_number=1, filename=file.filename)
+        if TESSERACT_AVAILABLE:                              
+            image = Image.open(io.BytesIO(content))
+            image = preprocess_image(image)
+            try:
+                ocr_text = pytesseract.image_to_string(image, config=f'--psm {psm}')
+                print(f"🖨️ OCR text preview: {repr(ocr_text[:100])}")
+                chunk_sentences(ocr_text, file_id, page_number=1, filename=file.filename)
+            except pytesseract.TesseractNotFoundError:
+                print(f"❌ Tesseract not found at OCR time.")
+        else:
+            print("   ↪️ Skipping OCR on image (tesseract missing)")
 
     print(f"✅ Extracted {len(chunks)} chunks from {filename}")
     return chunks
