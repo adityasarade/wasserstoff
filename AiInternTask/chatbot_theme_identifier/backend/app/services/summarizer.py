@@ -1,7 +1,7 @@
 from typing import List, Dict, Tuple
 from app.services.llm_service import query_llm
 from collections import defaultdict
-from app.core.config import params
+from app.config import params
 
 def summarize_document_chunks(doc_chunks: List[Dict]) -> Dict:
     """
@@ -9,6 +9,8 @@ def summarize_document_chunks(doc_chunks: List[Dict]) -> Dict:
     Returns: {"doc_id", "answer", "citation"}
     """
     doc_id = doc_chunks[0]["doc_id"]
+    
+    # Build the LLM input
     content = "\n".join([
         f"Page {c['page']}, Para {c['sentence']}: {c['text']}"
         for c in doc_chunks
@@ -19,10 +21,15 @@ def summarize_document_chunks(doc_chunks: List[Dict]) -> Dict:
     user_prompt = prompts["user"].format(content=content)
 
     response = query_llm(system_prompt, user_prompt)
-
     lines = response.strip().split("\n")
-    answer = lines[0].replace("Answer: ", "").strip()
-    citation = lines[1].replace("Citation: ", "").strip()
+    
+    # Find the answer and citation lines
+    answer_line = next((l for l in lines if l.lower().startswith("answer:")), "")
+    citation_line = next((l for l in lines if l.lower().startswith("citation:")), "")
+
+    # Extract the text after the colon
+    answer = answer_line.split(":", 1)[1].strip() if ":" in answer_line else answer_line
+    citation = citation_line.split(":", 1)[1].strip() if ":" in citation_line else citation_line
 
     return {"doc_id": doc_id, "answer": answer, "citation": citation}
 
@@ -44,17 +51,20 @@ def synthesize_themes(document_answers: List[Dict]) -> str:
     return query_llm(system_prompt, user_prompt)
 
 def group_chunks_by_doc_id(chunks):
-    grouped = defaultdict(list)
+    """
+    Groups a flat list of chunks into a dict mapping doc_id -> [chunks].
+    """
+    grouped: Dict[str, List[Dict]] = defaultdict(list)
     for chunk in chunks:
-        doc_id = chunk.get('doc_id')
-        grouped[doc_id].append(chunk)
+        grouped[chunk["doc_id"]].append(chunk)
     return dict(grouped)
 
 def summarize_documents(grouped_chunks: Dict[str, List[Dict]]) -> Tuple[List[Dict], str]:
     """
     Summarizes each document and synthesizes themes from the summaries.
+    Returns: (individual_summaries, synthesized_summary)
     """
-    individual_results = []
+    individual_results : List[Dict] = []
 
     for doc_id, chunks in grouped_chunks.items():
         summary = summarize_document_chunks(chunks)

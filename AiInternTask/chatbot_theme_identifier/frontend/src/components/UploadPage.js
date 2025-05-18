@@ -3,7 +3,7 @@ import { Box, Button, Typography, LinearProgress } from "@mui/material";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import api from "../api";
 
-const UploadPage = () => {
+const UploadPage = ({ onUploadSuccess }) => {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState("");
@@ -30,6 +30,7 @@ const UploadPage = () => {
         headers: { "Content-Type": "multipart/form-data" },
       });
       setUploadMessage("✅ Files uploaded and processed successfully!");
+      if (onUploadSuccess) onUploadSuccess();
       console.log(response.data);
     } catch (error) {
       setUploadMessage("❌ Upload failed. Check console for details.");

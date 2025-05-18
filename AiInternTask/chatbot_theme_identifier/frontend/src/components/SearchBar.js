@@ -7,7 +7,10 @@ const SearchBar = ({ onSearch }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (query.trim()) onSearch(query.trim());
+    if (query.trim()) {
+      onSearch(query.trim());
+      setQuery(""); // clear the input after search
+    }
   };
 
   return (

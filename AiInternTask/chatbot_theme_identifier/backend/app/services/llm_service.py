@@ -2,7 +2,7 @@ import os
 import requests
 from dotenv import load_dotenv
 import tiktoken
-from app.core.config import params
+from app.config import params
 import time
 from requests.exceptions import HTTPError
 

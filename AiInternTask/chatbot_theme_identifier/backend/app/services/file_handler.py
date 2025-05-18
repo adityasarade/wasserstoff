@@ -7,7 +7,7 @@ from pdf2image import convert_from_bytes
 import uuid
 import nltk
 from nltk.tokenize import sent_tokenize
-from app.core.config import params
+from app.config import params
 
 # Download tokenizer if missing
 try:

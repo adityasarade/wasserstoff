@@ -4,7 +4,7 @@ paths:
   metadata_file: "metadata.pkl"
 
 llm:
-  model_name: "llama3-70b-8192"
+  model_name: "llama-3.3-70b-versatile"
   temperature: 0.3
   max_tokens: 3000
 
@@ -52,4 +52,4 @@ prompts:
       Use the format:
 
       Theme 1 – [Title of theme]:
-      Documents (Document ID/ Name) explain ...
+      Documents (Document ID/ Name) explain

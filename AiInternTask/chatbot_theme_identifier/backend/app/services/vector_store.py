@@ -3,7 +3,7 @@ import faiss
 import pickle
 from sentence_transformers import SentenceTransformer
 from typing import List, Dict
-from app.core.config import params
+from app.config import params
 
 # Paths for vector store and metadata
 VECTOR_STORE_DIR = params["paths"]["vector_store_dir"]
@@ -46,9 +46,10 @@ def load_vector_store():
         chunks = pickle.load(f)
     return index, chunks
 
-def search(query: str, top_k: int = 5) -> List[Dict]:
+def search(query: str, top_k: int = 5, doc_ids: List[str] = None) -> List[Dict]:
     """
     Searches the FAISS index and returns top_k most relevant and informative chunks.
+    If doc_ids is provided, only considers chunks from those documents.
     Preference is given to longer chunks with higher semantic relevance.
     """
     index, chunks = load_vector_store()
@@ -64,10 +65,14 @@ def search(query: str, top_k: int = 5) -> List[Dict]:
     results = []
     for i, dist in zip(indices[0], distances[0]):
         if i < len(chunks):
-            chunk = chunks[i]
+            chunk = chunks[i].copy()
             chunk["similarity_score"] = float(dist)
             chunk["text_length"] = len(chunk["text"])
             results.append(chunk)
+
+    # If user passed a list of doc_ids, filter out others
+    if doc_ids:
+        results = [c for c in results if c["doc_id"] in doc_ids]
 
      # Filter out chunks below the minimum word threshold
     min_words = params["search"]["chunk_min_words"]
