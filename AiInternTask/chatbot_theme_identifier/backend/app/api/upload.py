@@ -2,7 +2,6 @@ from fastapi import APIRouter, UploadFile, File
 from typing import List
 from app.services.file_handler import extract_chunks_from_file
 from app.services.vector_store import save_vector_store
-from app.services.summarizer import group_chunks_by_doc_id, summarize_documents
 
 router = APIRouter()
 
@@ -22,16 +21,10 @@ async def upload_files(files: List[UploadFile] = File(...)):
     if not all_chunks:
         return {"error": "No valid documents were processed."}
 
-    # Step 1: Store new chunks in vector DB
+    # Store new chunks in vector DB
     save_vector_store(all_chunks)
 
-    # Step 2: Group the flat list of chunks by document ID
-    grouped = group_chunks_by_doc_id(all_chunks)
-
-    # Step 3: Summarize each document and synthesize themes
-    individual_summaries, synthesized_summary = summarize_documents(grouped)
-
+    # Return only a success message; LLM runs later during search
     return {
-        "document_table": individual_summaries,
-        "synthesized_summary": synthesized_summary
+        "message": f"✅ Stored {len(all_chunks)} chunks across {len({c['doc_id'] for c in all_chunks})} documents."
     }
