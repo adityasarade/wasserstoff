@@ -5,43 +5,82 @@ import {
   List,
   ListItem,
   ListItemText,
+  TextField,
   Typography,
+  Toolbar,
 } from "@mui/material";
 import api from "../api";
 
-const DocumentList = ({ selected, setSelected, refreshTrigger }) => {
+const DocumentList = ({
+  selected,
+  setSelected,
+  refreshTrigger,
+  showFilter = true,      // always show filter in Drawer
+}) => {
   const [docs, setDocs] = useState([]);
+  const [filter, setFilter] = useState("");
 
+  // Fetch docs whenever upload triggers a refresh
   useEffect(() => {
     (async () => {
       try {
         const { data } = await api.get("/documents/");
         setDocs(data.documents);
-        // select all by default whenever docs reload
+        // by default select all
         setSelected(data.documents.map((d) => d.doc_id));
       } catch (err) {
         console.error("Failed to fetch documents:", err);
       }
     })();
-    // Re-run on mount and whenever refreshTrigger changes
   }, [refreshTrigger, setSelected]);
 
-  const toggle = (id) => {
-    setSelected((curr) =>
-      curr.includes(id) ? curr.filter((x) => x !== id) : [...curr, id]
+  const toggle = (id) =>
+    setSelected((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
-  };
+
+  // apply filter to filename or doc_id
+  const displayed = docs.filter(
+    (d) =>
+      d.filename.toLowerCase().includes(filter.toLowerCase()) ||
+      d.doc_id.toLowerCase().includes(filter.toLowerCase())
+  );
 
   return (
-    <Box sx={{ mt: 4 }}>
-      <Typography variant="h6" gutterBottom>
-        Knowledge Base
-      </Typography>
-      <List>
-        {docs.map((d) => (
+    <Box
+      sx={{
+        width: 300,                  // Drawer width
+        p: 2,                        // inner padding
+        overflowY: "auto",
+        height: "calc(100vh - 64px)" // full viewport minus AppBar (64px)
+      }}
+    >
+      {/* pushes content below your AppBar */}
+      <Toolbar />
+
+      {showFilter && (
+        <>
+        <Typography
+          variant="h6"
+          sx={{ mb: 1, fontWeight: "bold", textAlign: "center" }}
+          >
+            Document List
+        </Typography>
+        <TextField
+          fullWidth
+          size="small"
+          placeholder="Search documents…"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          sx={{ mb: 2 }}
+        />
+        </>
+      )}
+
+      <List dense>
+        {displayed.map((d) => (
           <ListItem
             key={d.doc_id}
-            dense
             button
             onClick={() => toggle(d.doc_id)}
           >
@@ -49,11 +88,15 @@ const DocumentList = ({ selected, setSelected, refreshTrigger }) => {
               edge="start"
               checked={selected.includes(d.doc_id)}
               tabIndex={-1}
-              disableRipple
             />
             <ListItemText primary={d.filename} secondary={d.doc_id} />
           </ListItem>
         ))}
+        {displayed.length === 0 && (
+          <Typography variant="body2" color="text.secondary">
+            No documents match.
+          </Typography>
+        )}
       </List>
     </Box>
   );
