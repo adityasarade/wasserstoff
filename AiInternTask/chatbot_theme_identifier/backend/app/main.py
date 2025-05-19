@@ -18,7 +18,10 @@ def clear_vector_store_on_startup():
         if os.path.exists(p):
             os.remove(p)
 
-origins = ["http://localhost:3000"]
+origins = [
+    "http://localhost:3000",
+    "https://<your-render-service>.onrender.com"
+]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
