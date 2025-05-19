@@ -10,11 +10,12 @@ from nltk.tokenize import sent_tokenize
 from app.config import params
 import shutil     
 
-# Download tokenizer if missing
-try:
-    nltk.data.find("tokenizers/punkt")
-except LookupError:
-    nltk.download("punkt")
+# Ensure both the 'punkt' and 'punkt_tab' tokenizers are present
+for res in ("punkt", "punkt_tab"):
+    try:
+        nltk.data.find(f"tokenizers/{res}")
+    except LookupError:
+        nltk.download(res)
 
 TESSERACT_AVAILABLE = shutil.which("tesseract") is not None
 if not TESSERACT_AVAILABLE:
