@@ -17,8 +17,9 @@ COPY requirements.txt .
 # 5. Install Python deps
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 6. Copy the rest of the code
-COPY . .
+# 6. Copy the application code, including params.yaml under app/
+COPY app/params.yaml ./app/params.yaml
+COPY app ./app
 
 # 7. Expose the port and run uvicorn
 ENV PORT=8000
