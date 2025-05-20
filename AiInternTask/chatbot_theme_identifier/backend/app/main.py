@@ -20,7 +20,7 @@ def clear_vector_store_on_startup():
 
 origins = [
     "http://localhost:3000",
-    "https://<your-render-service>.onrender.com"
+    "https://wasserstoff-qicf.onrender.com/"
 ]
 app.add_middleware(
     CORSMiddleware,
