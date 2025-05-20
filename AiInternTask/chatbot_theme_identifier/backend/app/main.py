@@ -24,8 +24,7 @@ def root():
 
 origins = [
     "http://localhost:3000",
-    "https://wasserstoff-qicf.onrender.com",
-    "https://wasserstoff-qicf.onrender.com/docs"
+    "https://wasserstoff-qicf.onrender.com"
 ]
 app.add_middleware(
     CORSMiddleware,
