@@ -17,10 +17,15 @@ def clear_vector_store_on_startup():
     for p in (index_path, meta_path):
         if os.path.exists(p):
             os.remove(p)
+            
+@app.get("/")
+def root():
+    return JSONResponse({"status": "ok"})
 
 origins = [
     "http://localhost:3000",
-    "https://wasserstoff-qicf.onrender.com/"
+    "https://wasserstoff-qicf.onrender.com",
+    "https://wasserstoff-qicf.onrender.com/docs"
 ]
 app.add_middleware(
     CORSMiddleware,
