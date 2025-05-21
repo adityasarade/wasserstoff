@@ -1,5 +1,7 @@
 # Document Research & Theme Identification Chatbot
 
+## Live Demo: https://wasserstoff-mu.vercel.app
+
 An interactive research assistant that lets you:
 1. **Upload** PDFs or scanned images  
 2. **Build** a semantic search knowledge base (FAISS + embeddings)  
