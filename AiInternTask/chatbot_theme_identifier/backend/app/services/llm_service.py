@@ -12,6 +12,9 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 def truncate_text(text: str, max_tokens: int = None) -> str:
+    """
+    We need to trim down the input so that we dont hit the token limit of Groq
+    """
     max_toks = params["llm"]["max_tokens"]
     # tiktoken doesn't officially support LLaMA, using GPT-3.5 tokenizer instead
     enc = tiktoken.encoding_for_model("gpt-3.5-turbo")

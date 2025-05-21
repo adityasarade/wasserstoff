@@ -3,7 +3,6 @@ from fastapi.responses import JSONResponse
 from app.api.upload import router as upload_router  
 from app.api.search import router as search_router
 from app.api.docs import router as docs_router
-from app.api.reset import router as reset_router
 from app.api.maintenance import router as maintenance_router
 from app.services.vector_store import init_vector_store
 from fastapi.middleware.cors import CORSMiddleware
@@ -38,7 +37,6 @@ app.add_middleware(
 
 # Include routes
 app.include_router(maintenance_router, prefix="", tags=["maintenance"])
-app.include_router(reset_router, prefix="")
 app.include_router(upload_router)  
 app.include_router(search_router)
 app.include_router(docs_router)  

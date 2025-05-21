@@ -15,15 +15,15 @@ async def search_documents(
         description="Comma-separated list of document IDs to restrict the search to"
     )
 ):
-    # 1) Parse optional doc filter
+    # Parse optional doc filter
     selected = doc_ids.split(",") if doc_ids else None
 
-    # 2) Vector search + initial rerank/filter
+    # Vector search + initial rerank/filter
     raw_chunks = search(query, top_k=top_k, doc_ids=selected)
     if not raw_chunks:
         return {"error": "No relevant information found."}
 
-    # 3) Dedupe & drop too-short chunks in one pass
+    # Dedupe & drop too-short chunks in one pass
     seen = set()
     min_words = params["search"]["chunk_min_words"]
     deduped = []
@@ -34,7 +34,7 @@ async def search_documents(
 
     top_chunks = deduped[:top_k]
 
-    # 4) Build the table rows
+    # Build the table rows
     extracted_table = [
         {
             "Document ID": c["doc_id"],
@@ -44,17 +44,17 @@ async def search_documents(
         for c in top_chunks
     ]
 
-    # 5) Prepare LLM context for theme synthesis
+    # Prepare LLM context for theme synthesis
     context = "\n".join(
         f"{c['doc_id']} (Pg {c['page']}, Sent {c['sentence']}): {c['text']}"
         for c in top_chunks
     )
 
-    # 6) Call LLM once for cross-document themes
+    # Call LLM once for cross-document themes
     system_prompt = params["prompts"]["search"]["system"]
     synthesized_summary = query_llm(system_prompt, context)
 
-    # 7) Return exactly what the frontend needs
+    # Return exactly what the frontend needs
     return {
         "individual_results": extracted_table,
         "synthesized_summary": synthesized_summary

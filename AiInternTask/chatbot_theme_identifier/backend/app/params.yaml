@@ -18,7 +18,6 @@ search:
 ocr:
   dpi: 300
   tesseract_psm: 6
-  threshold: 140
 
 prompts:
   summarize_doc:

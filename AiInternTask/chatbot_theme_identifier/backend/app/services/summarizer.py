@@ -15,7 +15,8 @@ def summarize_document_chunks(doc_chunks: List[Dict]) -> Dict:
         f"Page {c['page']}, Para {c['sentence']}: {c['text']}"
         for c in doc_chunks
     ])
-
+    
+    # Specific task and structure provided to the llm
     prompts = params["prompts"]["summarize_doc"]
     system_prompt = prompts["system"]
     user_prompt = prompts["user"].format(content=content)
@@ -43,7 +44,8 @@ def synthesize_themes(document_answers: List[Dict]) -> str:
         f"{doc['doc_id']}: {doc['answer']}"
         for doc in document_answers
     ])
-
+    
+    # LLM groups the summaries and provides us with different Themes
     prompts = params["prompts"]["synthesize_themes"]
     system_prompt = prompts["system"]
     user_prompt = prompts["user"].format(context=context)
@@ -69,6 +71,8 @@ def summarize_documents(grouped_chunks: Dict[str, List[Dict]]) -> Tuple[List[Dic
     for doc_id, chunks in grouped_chunks.items():
         summary = summarize_document_chunks(chunks)
         individual_results.append(summary)
-
+        
     synthesized_summary = synthesize_themes(individual_results)
+    
+    # Returning the final output to be presented
     return individual_results, synthesized_summary
