@@ -1,3 +1,6 @@
+# File currently not being used
+# Saved the logic for testing various types of outputs later
+
 from typing import List, Dict, Tuple
 from app.services.llm_service import query_llm
 from collections import defaultdict
