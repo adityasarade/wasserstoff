@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from 'react';
 import {
   Box,
   CssBaseline,
@@ -25,6 +25,17 @@ function App() {
   const [selectedDocs, setSelectedDocs] = useState([]);
   const [docsVersion, setDocsVersion] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(true);
+
+  // Clear backend knowledge base on every full page load
+  useEffect(() => {
+    api.post("/clear/").catch(console.error);
+  }, []);
+
+  useEffect(() => {
+  fetch("https://adityasarade-wasserstoff.hf.space/reset/", { method: "POST" })
+    .then(res => console.log("Reset done"))
+    .catch(console.error);
+}, []);
 
   const handleSearch = async (query) => {
     try {

@@ -86,3 +86,18 @@ def search(query: str, top_k: int = 5, doc_ids: List[str] = None) -> List[Dict]:
     )
 
     return results[:top_k]
+
+def init_vector_store():
+    """
+    (Re)initialize an empty FAISS index and metadata file.
+    Overwrites any existing store on disk.
+    """
+    # 1) create an empty index (0 vectors of the correct dimension)
+    #    we need the dimension: use EMBED_MODEL to get a dummy embedding
+    dim = EMBED_MODEL.encode([""])[0].shape[0]
+    idx = faiss.IndexFlatL2(dim)
+    # 2) write empty index to disk
+    faiss.write_index(idx, INDEX_PATH)
+    # 3) write empty metadata list
+    with open(META_PATH, "wb") as f:
+        pickle.dump([], f)

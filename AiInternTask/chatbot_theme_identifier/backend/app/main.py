@@ -3,6 +3,9 @@ from fastapi.responses import JSONResponse
 from app.api.upload import router as upload_router  
 from app.api.search import router as search_router
 from app.api.docs import router as docs_router
+from app.api.reset import router as reset_router
+from app.api.maintenance import router as maintenance_router
+from app.services.vector_store import init_vector_store
 from fastapi.middleware.cors import CORSMiddleware
 import os
 from app.config import params
@@ -10,13 +13,12 @@ from app.config import params
 app = FastAPI()
 
 @app.on_event("startup")
-def clear_vector_store_on_startup():
-    vector_dir = params["paths"]["vector_store_dir"]
-    index_path = os.path.join(vector_dir, params["paths"]["index_file"])
-    meta_path  = os.path.join(vector_dir, params["paths"]["metadata_file"])
-    for p in (index_path, meta_path):
-        if os.path.exists(p):
-            os.remove(p)
+def startup_initialize_vector_store():
+    """
+    On application startup, (re)create an empty vector store.
+    This ensures no old documents persist across restarts.
+    """
+    init_vector_store()
             
 @app.get("/")
 def root():
@@ -35,6 +37,8 @@ app.add_middleware(
 )
 
 # Include routes
+app.include_router(maintenance_router, prefix="", tags=["maintenance"])
+app.include_router(reset_router, prefix="")
 app.include_router(upload_router)  
 app.include_router(search_router)
 app.include_router(docs_router)  
