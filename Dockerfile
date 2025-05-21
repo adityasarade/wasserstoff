@@ -1,24 +1,37 @@
-# 1. Python base
+# Python base
 FROM python:3.11-slim
 
-# 2. Install Tesseract OCR
+# Install Tesseract OCR, Poppler (for pdf2image), and FAISS dependency
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       tesseract-ocr \
       libtesseract-dev \
+      poppler-utils \
+      libomp-dev \
  && rm -rf /var/lib/apt/lists/*
 
-# 3. Set workdir
+# Set workdir
 WORKDIR /app
 
-# 4. Install Python deps
+# Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 5. Copy in your backend code tree
-COPY AiInternTask/chatbot_theme_identifier/backend/app ./app
+# Download NLTK punkt + punkt_tab into writable location
+RUN python -c "import nltk; nltk.download('punkt', download_dir='/usr/local/share/nltk_data'); nltk.download('punkt_tab', download_dir='/usr/local/share/nltk_data')"
 
-# 6. Expose & run
-ENV PORT=8000
-EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Point NLTK to the pre-downloaded data
+ENV NLTK_DATA=/usr/local/share/nltk_data
+
+# Create writable data directory and fix permissions
+RUN mkdir -p /app/data && chmod 777 /app/data
+
+ENV ENV=production
+
+# Copy in your backend code tree
+COPY app ./app
+
+# Expose & run
+ENV PORT=7860
+EXPOSE 7860
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "7860"]
